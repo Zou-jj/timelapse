@@ -63,11 +63,11 @@ def still():
 
 while(True):
     still()
-    frame = cv2.imread('temp.jpg')
+    frame = cv2.imread('temp/temp.jpg')
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite('outgray.jpg', gray)
+    cv2.imwrite('temp/outgray.jpg', gray)
     blur = cv2.GaussianBlur(gray, (21, 21), 0)
-    cv2.imwrite('outgrayblu.jpg', blur)
+    cv2.imwrite('temp/outgrayblu.jpg', blur)
     mean = np.mean(frame, axis=(0,1))
     print(mean)
     all_mean = np.mean(frame)
@@ -117,12 +117,51 @@ while(True):
         shutter = int(1000000 / shut_rcpl)
         return shutter
     
+    def tune_iso(gain, lower, upper):
+        iso = int(gain * 100)
+        if all_mean < lower:
+            if iso == 0:
+                iso = 100
+            elif iso == 100:
+                iso = 200
+            elif iso == 200:
+                iso = 320
+            elif iso == 320:
+                iso = 400
+            elif iso == 400:
+                iso = 500
+            elif iso == 500:
+                iso = 640
+            elif iso == 640:
+                iso = 800
+            elif iso == 800:
+                iso = 1600
+        elif all_mean > upper:
+            if iso == 100:
+                iso = 0
+            elif iso == 200:
+                iso = 100
+            elif iso == 320:
+                iso = 200
+            elif iso == 400:
+                iso = 320
+            elif iso == 500:
+                iso = 400
+            elif iso == 640:
+                iso = 500
+            elif iso == 800:
+                iso = 640
+            elif iso == 1600:
+                iso = 800
+        gain = iso / 100
+        return gain
+    
     if all_mean < 130:
         if conf["shutter"] >= shutter_max:
             if conf["gain"] >= gain_max:
                 break
             else:
-                conf["gain"] += 0.25
+                conf["gain"] = tune_iso(conf["gain"], 130, 150)
         else:
             conf["shutter"] = tune_shutter(conf["shutter"], 130, 150)
     elif all_mean > 150:
@@ -132,7 +171,7 @@ while(True):
             else:
                 conf["shutter"] = tune_shutter(conf["shutter"], 130, 150)
         else:
-            conf["gain"] -= 0.25
+            conf["gain"] = tune_iso(conf["gain"], 130, 150)
     else:
         break
 
@@ -153,4 +192,5 @@ else:
 cv2.putText(frame, "ISO: {}".format(str(conf["gain"]*100)),
     (frame.shape[1] - 250, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 
+cv2.imwrite('temp/out.jpg', frame)
 cv2.imwrite('images/' + ts + '.jpg', frame)
