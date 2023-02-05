@@ -49,6 +49,83 @@ gain_upper = gain_max
 gain_min = 1
 gain_lower = gain_min
 
+def tune_iso(gain, lower, upper):
+    iso = int(gain * 100)
+    if all_mean < lower:
+        if iso == 0:
+            iso = 100
+        elif iso == 100:
+            iso = 200
+        elif iso == 200:
+            iso = 320
+        elif iso == 320:
+            iso = 400
+        elif iso == 400:
+            iso = 500
+        elif iso == 500:
+            iso = 640
+        elif iso == 640:
+            iso = 800
+        elif iso == 800:
+            iso = 1600
+    elif all_mean > upper:
+        if iso == 100:
+            iso = 0
+        elif iso == 200:
+            iso = 100
+        elif iso == 320:
+            iso = 200
+        elif iso == 400:
+            iso = 320
+        elif iso == 500:
+            iso = 400
+        elif iso == 640:
+            iso = 500
+        elif iso == 800:
+            iso = 640
+        elif iso == 1600:
+            iso = 800
+    gain = iso / 100
+    return gain
+
+def tune_shutter(shutter, lower, upper):
+    if shutter <= 1000000:
+        shut_rcpl = int(1000000 / shutter)
+    else:
+        shut_rcpl = 1000000 / shutter
+    if all_mean < lower:
+        if shut_rcpl < 4:
+            shut_rcpl /= 2
+        elif 4 <= shut_rcpl < 10:
+            shut_rcpl -= 2
+        elif 10 <= shut_rcpl < 30:
+            shut_rcpl -= 5
+        elif 30 <= shut_rcpl < 100:
+            shut_rcpl -= 10
+        elif 100 <= shut_rcpl < 200:
+            shut_rcpl -= 20
+        elif 200 <= shut_rcpl < 500:
+            shut_rcpl -= 50
+        elif shut_rcpl >= 500:
+            shut_rcpl -= 100
+    elif all_mean > upper:
+        if shut_rcpl <= 4:
+            shut_rcpl *= 2
+        elif 4 <= shut_rcpl < 10:
+            shut_rcpl += 2
+        elif 10 <= shut_rcpl < 30:
+            shut_rcpl += 5
+        elif 30 <= shut_rcpl < 100:
+            shut_rcpl += 10
+        elif 100 <= shut_rcpl < 200:
+            shut_rcpl += 20
+        elif 200 <= shut_rcpl < 500:
+            shut_rcpl += 50
+        elif 500 <= shut_rcpl < 1000:
+            shut_rcpl += 100
+    shutter = int(1000000 / shut_rcpl)
+    return shutter
+
 # "jpg test". See if the executable appears to run and write an jpg output file.
 def still():
     print("    jpg test")
@@ -79,82 +156,6 @@ while(True):
     gray_blur_mean = np.mean(blur)
     print(gray_blur_mean)
 
-    def tune_shutter(shutter, lower, upper):
-        if shutter <= 1000000:
-            shut_rcpl = int(1000000 / shutter)
-        else:
-            shut_rcpl = 1000000 / shutter
-        if all_mean < lower:
-            if shut_rcpl < 4:
-                shut_rcpl /= 2
-            elif 4 <= shut_rcpl < 10:
-                shut_rcpl -= 2
-            elif 10 <= shut_rcpl < 30:
-                shut_rcpl -= 5
-            elif 30 <= shut_rcpl < 100:
-                shut_rcpl -= 10
-            elif 100 <= shut_rcpl < 200:
-                shut_rcpl -= 20
-            elif 200 <= shut_rcpl < 500:
-                shut_rcpl -= 50
-            elif shut_rcpl >= 500:
-                shut_rcpl -= 100
-        elif all_mean > upper:
-            if shut_rcpl <= 4:
-                shut_rcpl *= 2
-            elif 4 <= shut_rcpl < 10:
-                shut_rcpl += 2
-            elif 10 <= shut_rcpl < 30:
-                shut_rcpl += 5
-            elif 30 <= shut_rcpl < 100:
-                shut_rcpl += 10
-            elif 100 <= shut_rcpl < 200:
-                shut_rcpl += 20
-            elif 200 <= shut_rcpl < 500:
-                shut_rcpl += 50
-            elif 500 <= shut_rcpl < 1000:
-                shut_rcpl += 100
-        shutter = int(1000000 / shut_rcpl)
-        return shutter
-    
-    def tune_iso(gain, lower, upper):
-        iso = int(gain * 100)
-        if all_mean < lower:
-            if iso == 0:
-                iso = 100
-            elif iso == 100:
-                iso = 200
-            elif iso == 200:
-                iso = 320
-            elif iso == 320:
-                iso = 400
-            elif iso == 400:
-                iso = 500
-            elif iso == 500:
-                iso = 640
-            elif iso == 640:
-                iso = 800
-            elif iso == 800:
-                iso = 1600
-        elif all_mean > upper:
-            if iso == 100:
-                iso = 0
-            elif iso == 200:
-                iso = 100
-            elif iso == 320:
-                iso = 200
-            elif iso == 400:
-                iso = 320
-            elif iso == 500:
-                iso = 400
-            elif iso == 640:
-                iso = 500
-            elif iso == 800:
-                iso = 640
-            elif iso == 1600:
-                iso = 800
-        gain = iso / 100
-        return gain
     
     if all_mean < 130:
         if conf["shutter"] >= shutter_max:
