@@ -14,6 +14,7 @@ from pathlib import Path
 def run_executable(args, logfile):
     start_time = timer()
     with open(logfile, 'w') as logfile:
+        print(' '.join(args))
         p = subprocess.Popen(args, stdout=logfile, stderr=subprocess.STDOUT)
         p.communicate()
     time_taken = timer() - start_time
@@ -43,24 +44,26 @@ shutter_lower = shutter_min
 
 if "gain" not in conf:
     conf["gain"] = 1
-gain_max = 4
+gain_max = 16
 gain_upper = gain_max
-gain_min = 0.5
+gain_min = 1
 gain_lower = gain_min
 
 # "jpg test". See if the executable appears to run and write an jpg output file.
 def still():
     print("    jpg test")
-    retcode, time_taken = run_executable(['libcamera-still', '-r', '--shutter', str(conf["shutter"]), '--gain', str(conf["gain"]), '-o', 'test.jpg'], 'log.txt')
-    check_retcode(retcode, "test_still: jpg test")
-    retcode, time_taken = run_executable(['ffmpeg', '-y', '-i', 'test.jpg', '-vf', 'transpose=1', 'test.jpg'], 'log.txt')
-    check_retcode(retcode, "ffmpeg rot test")
-# check_time(time_taken, 1.2, 8, "test_still: jpg test")
-# check_size(output_jpg, 1024, "test_still: jpg test")
+    while True:
+        retcode, time_taken = run_executable(['libcamera-still', '-r', '--shutter', str(conf["shutter"]), '--gain', str(conf["gain"]), '--immediate', '-o', 'temp/temp.jpg'], 'temp/log.txt')
+        if retcode == 0:
+            break
+    while True:
+        retcode, time_taken = run_executable(['ffmpeg', '-y', '-i', 'temp/temp.jpg', '-vf', 'transpose=1', 'temp/temp.jpg'], 'temp/log.txt')
+        if retcode == 0:
+            break
 
 while(True):
     still()
-    frame = cv2.imread('test.jpg')
+    frame = cv2.imread('temp.jpg')
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     cv2.imwrite('outgray.jpg', gray)
     blur = cv2.GaussianBlur(gray, (21, 21), 0)
@@ -69,53 +72,49 @@ while(True):
     print(mean)
     all_mean = np.mean(frame)
     print(all_mean)
-
+    var = np.var(gray)
+    print(var)
     gray_mean = np.mean(gray)
     print(gray_mean)
     gray_blur_mean = np.mean(blur)
     print(gray_blur_mean)
-    # for i in range(180, 190):
-    #     for j in range(360, 370):
-    #         frame[i, j] = [0, 255, 0]
-    # for i in range(frame.shape[0]):
-    #     for j in range(frame.shape[1]):
-    #         if gray[i, j] < 20:
-    #             frame[i, j] = frame[i, j] * 4
 
     def tune_shutter(shutter, lower, upper):
-        shut_rev = int(1000000 / shutter)
+        if shutter <= 1000000:
+            shut_rcpl = int(1000000 / shutter)
+        else:
+            shut_rcpl = 1000000 / shutter
         if all_mean < lower:
-            if shut_rev < 1:
-                shut_rev /= 2
-            elif shut_rev < 10:
-                shut_rev -= 2
-            elif shut_rev in range(10, 30):
-                shut_rev -= 5
-            elif shut_rev in range(30, 100):
-                shut_rev -= 10
-            elif shut_rev in range(100, 200):
-                shut_rev -= 20
-            elif shut_rev in range(200, 500):
-                shut_rev -= 50
-            elif shut_rev >= 500:
-                shut_rev -= 100
-            shutter = int(1000000 / shut_rev)
+            if shut_rcpl < 4:
+                shut_rcpl /= 2
+            elif 4 <= shut_rcpl < 10:
+                shut_rcpl -= 2
+            elif 10 <= shut_rcpl < 30:
+                shut_rcpl -= 5
+            elif 30 <= shut_rcpl < 100:
+                shut_rcpl -= 10
+            elif 100 <= shut_rcpl < 200:
+                shut_rcpl -= 20
+            elif 200 <= shut_rcpl < 500:
+                shut_rcpl -= 50
+            elif shut_rcpl >= 500:
+                shut_rcpl -= 100
         elif all_mean > upper:
-            if shut_rev < 1:
-                shut_rev *= 2
-            elif shut_rev < 10:
-                shut_rev += 2
-            elif shut_rev in range(10, 30):
-                shut_rev += 5
-            elif shut_rev in range(30, 100):
-                shut_rev += 10
-            elif shut_rev in range(100, 200):
-                shut_rev += 20
-            elif shut_rev in range(200, 500):
-                shut_rev += 50
-            elif shut_rev in range(500, 1000):
-                shut_rev += 100
-            shutter = int(1000000 / shut_rev)
+            if shut_rcpl <= 4:
+                shut_rcpl *= 2
+            elif 4 <= shut_rcpl < 10:
+                shut_rcpl += 2
+            elif 10 <= shut_rcpl < 30:
+                shut_rcpl += 5
+            elif 30 <= shut_rcpl < 100:
+                shut_rcpl += 10
+            elif 100 <= shut_rcpl < 200:
+                shut_rcpl += 20
+            elif 200 <= shut_rcpl < 500:
+                shut_rcpl += 50
+            elif 500 <= shut_rcpl < 1000:
+                shut_rcpl += 100
+        shutter = int(1000000 / shut_rcpl)
         return shutter
     
     if all_mean < 130:
@@ -123,7 +122,7 @@ while(True):
             if conf["gain"] >= gain_max:
                 break
             else:
-                conf["gain"] *= 2
+                conf["gain"] += 0.25
         else:
             conf["shutter"] = tune_shutter(conf["shutter"], 130, 150)
     elif all_mean > 150:
@@ -133,7 +132,7 @@ while(True):
             else:
                 conf["shutter"] = tune_shutter(conf["shutter"], 130, 150)
         else:
-            conf["gain"] /= 2
+            conf["gain"] -= 0.25
     else:
         break
 
@@ -151,15 +150,7 @@ if conf["shutter"]/1000000 >= 1:
 else:
     cv2.putText(frame, "Shutter: 1/{}".format(str(round(1000000/conf["shutter"]))),
         (frame.shape[1] - 250, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-# cv2.putText(frame, "Meter: {}".format(str(camera.meter_mode)),
-#     (frame.shape[1] - 250, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-# cv2.putText(frame, "Brightness: {}".format(str(camera.brightness)),
-#     (frame.shape[1] - 250, frame.shape[0] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
 cv2.putText(frame, "ISO: {}".format(str(conf["gain"]*100)),
     (frame.shape[1] - 250, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-# cv2.putText(frame, "Contrast: {}".format(str(camera.contrast)),
-#     (frame.shape[1] - 250, frame.shape[0] - 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-# cv2.putText(frame, "AWB: r:{} b:{}".format(str(float(camera.awb_gains[0].__round__(2))), str(float(camera.awb_gains[1].__round__(2)))),
-    # (frame.shape[1] - 250, frame.shape[0] - 110), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-# cv2.putText(frame, "hello world", (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
-cv2.imwrite(ts + '.jpg', frame)
+
+cv2.imwrite('images/' + ts + '.jpg', frame)
