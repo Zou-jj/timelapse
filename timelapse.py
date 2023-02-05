@@ -181,16 +181,16 @@ conf_file.close()
 
 timestamp = datetime.datetime.now()
 ts = timestamp.strftime("%y-%m-%d_%H%M")
-cv2.putText(frame, ts, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
+cv2.putText(frame, ts, (10, frame.shape[0] - 10), 0,
     0.8, (255, 255, 255), 2)
 if conf["shutter"]/1000000 >= 1:
-    cv2.putText(frame, "Shutter: {}".format(str(round(conf["shutter"]/1000000))),
-        (frame.shape[1] - 250, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+    cv2.putText(frame, "Shutter: {}".format(str(int(conf["shutter"]/1000000))),
+        (frame.shape[1] - 250, frame.shape[0] - 10), 0, 0.8, (255, 255, 0), 2)
 else:
-    cv2.putText(frame, "Shutter: 1/{}".format(str(round(1000000/conf["shutter"]))),
-        (frame.shape[1] - 250, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+    cv2.putText(frame, "Shutter: 1/{}".format(str(int(1000000/conf["shutter"]))),
+        (frame.shape[1] - 250, frame.shape[0] - 10), 0, 0.8, (255, 255, 0), 2)
 cv2.putText(frame, "ISO: {}".format(str(conf["gain"]*100)),
-    (frame.shape[1] - 250, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+    (frame.shape[1] - 250, frame.shape[0] - 30), 0, 0.8, (255, 255, 0), 2)
 
 cv2.imwrite('temp/out.jpg', frame)
 cv2.imwrite('images/' + ts + '.jpg', frame)
