@@ -1,6 +1,6 @@
 *.jpg
 *.dng
 conf.json
-images/*
+images
 temp/*
 out/*
