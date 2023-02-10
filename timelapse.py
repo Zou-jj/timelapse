@@ -53,85 +53,45 @@ gain_upper = gain_max
 gain_min = 1
 gain_lower = gain_min
 
-def tune_iso(gain, lower, upper):
+mean_upper_bound = 160
+mean_lower_bound = 120
+
+def tune_iso(gain, level):
     iso = int(gain * 100)
-    if all_mean < lower:
-        if iso == 0:
-            iso = 100
-        elif iso == 100:
-            iso = 200
-        elif iso == 200:
-            iso = 320
-        elif iso == 320:
-            iso = 400
-        elif iso == 400:
-            iso = 500
-        elif iso == 500:
-            iso = 640
-        elif iso == 640:
-            iso = 800
-        elif iso == 800:
-            iso = 1600
-    elif all_mean > upper:
-        if iso == 100:
-            iso = 0
-        elif iso == 200:
-            iso = 100
-        elif iso == 320:
-            iso = 200
-        elif iso == 400:
-            iso = 320
-        elif iso == 500:
-            iso = 400
-        elif iso == 640:
-            iso = 500
-        elif iso == 800:
-            iso = 640
-        elif iso == 1600:
-            iso = 800
-    gain = iso / 100
-    return gain
+    iso_values = [100, 200, 400, 800, 1600]
+    index = iso_values.index(iso)
+    if level == 0:
+        return gain
+    if index == 0 and level < 0:
+        return gain
+    if index == len(iso_values) - 1 and level > 0:
+        return gain
+    return int(iso_values[index + level] / 100)
 
-def tune_shutter(shutter, lower, upper):
-    if shutter <= 1000000:
-        shut_rcpl = int(1000000 / shutter)
+def tune_shutter(shutter, level):
+    shutter_values = [1000, 2000, 4000, 8000, 16666, 33333, 66666, 125000, 250000, 500000, 1000000, 2000000, 4000000]
+    index = shutter_values.index(shutter)
+    if level == 0:
+        return shutter
+    if index == 0 and level < 0:
+        return shutter
+    if index == len(shutter_values) - 1 and level > 0:
+        return shutter
+    return shutter_values[index + level]
+
+def tune_param(shutter, gain, level):
+    if shutter < shutter_max:
+        return tune_shutter(shutter, level), gain
     else:
-        shut_rcpl = 1000000 / shutter
-    if all_mean < lower:
-        if shut_rcpl < 4:
-            shut_rcpl /= 2
-        elif 4 <= shut_rcpl < 10:
-            shut_rcpl -= 2
-        elif 10 <= shut_rcpl < 30:
-            shut_rcpl -= 5
-        elif 30 <= shut_rcpl < 100:
-            shut_rcpl -= 10
-        elif 100 <= shut_rcpl < 200:
-            shut_rcpl -= 20
-        elif 200 <= shut_rcpl < 500:
-            shut_rcpl -= 50
-        elif shut_rcpl >= 500:
-            shut_rcpl -= 100
-    elif all_mean > upper:
-        if shut_rcpl <= 4:
-            shut_rcpl *= 2
-        elif 4 <= shut_rcpl < 10:
-            shut_rcpl += 2
-        elif 10 <= shut_rcpl < 30:
-            shut_rcpl += 5
-        elif 30 <= shut_rcpl < 100:
-            shut_rcpl += 10
-        elif 100 <= shut_rcpl < 200:
-            shut_rcpl += 20
-        elif 200 <= shut_rcpl < 500:
-            shut_rcpl += 50
-        elif 500 <= shut_rcpl < 1000:
-            shut_rcpl += 100
-    shutter = int(1000000 / shut_rcpl)
-    return shutter
+        if gain > gain_min:
+            return shutter, tune_iso(gain, level)
+        else:
+            if level > 0:
+                return shutter, tune_iso(gain, level)
+    return tune_shutter(shutter, level), gain
 
-# out_path = '/media/pi-zjj/Seagate/timelapse/images/'
-out_path = 'test/'
+out_path = '/media/pi-zjj/Seagate/timelapse/images/'
+# out_path = 'test/'
 check_out_path(out_path)
 
 def still(shutter, gain, file):
@@ -150,55 +110,52 @@ def rot(file):
             break
         timeout -= 1
 
+ref_number = 3
 # "jpg test". See if the executable appears to run and write an jpg output file.
 def still_all():
     print("    jpg test")
-    still(conf["shutter"], conf["gain"], 'temp/temp.jpg')
-    still(conf["shutter"]*2, conf["gain"], 'temp/temp_bright.jpg')
-    still(conf["shutter"]*4, conf["gain"], 'temp/temp_bright2.jpg')
-    still(conf["shutter"]/4, conf["gain"], 'temp/temp_dark.jpg')
-    still(conf["shutter"]/16, conf["gain"], 'temp/temp_dark2.jpg')
+    for i in range(1, ref_number):
+        bright_ref_file = 'temp/bright' + str(i) + '.jpg'
+        dark_ref_file = 'temp/dark' + str(i) + '.jpg'
+        bright_ref_shutter, bright_ref_gain = tune_param(conf["shutter"], conf["gain"], i)
+        dark_ref_shutter, dark_ref_gain = tune_param(conf["shutter"], conf["gain"], -i)
+        still(bright_ref_shutter, bright_ref_gain, bright_ref_file)
+        still(dark_ref_shutter, dark_ref_gain, dark_ref_file)
+        rot(bright_ref_file)
+        rot(dark_ref_file)
 
-def rot_all():
-    rot('temp/temp.jpg')
-    rot('temp/temp_bright.jpg')
-    rot('temp/temp_bright2.jpg')
-    rot('temp/temp_dark.jpg')
-    rot('temp/temp_dark2.jpg')
-
-while(True):
+def hdr(frame_ref):
     still_all()
-    rot_all()
-    frame_normal = cv2.imread('temp/temp.jpg')
-    frame_bright = cv2.imread('temp/temp_bright.jpg')
-    frame_bright2 = cv2.imread('temp/temp_bright2.jpg')
-    frame_dark = cv2.imread('temp/temp_dark.jpg')
-    frame_dark2 = cv2.imread('temp/temp_dark2.jpg')
-    img_list = [frame_dark2, frame_dark, frame_normal, frame_bright, frame_bright2]
-    # exposure_times = np.array([conf["shutter"]/8, conf["shutter"], conf["shutter"]*2])
-    # merge_debevec = cv2.createMergeDebevec()
-    # hdr_debevec = merge_debevec.process(img_list, times=exposure_times.copy())
-    # merge_robertson = cv2.createMergeRobertson()
-    # hdr_robertson = merge_robertson.process(img_list, times=exposure_times.copy())
-    # tonemap1 = cv2.createTonemap(gamma=2.2)
-    # res_debevec = tonemap1.process(hdr_debevec.copy())
+    img_list = []
+    for i in range(1, ref_number):
+        dark_ref_file = 'temp/dark' + str(i) + '.jpg'
+        dark_ref_frame = cv2.imread(dark_ref_file)
+        img_list.append(dark_ref_frame)
+    img_list.append(frame_ref)
+    for i in range(1, ref_number):
+        bright_ref_file = 'temp/bright' + str(i) + '.jpg'
+        bright_ref_frame = cv2.imread(bright_ref_file)
+        img_list.append(bright_ref_frame)
     merge_mertens = cv2.createMergeMertens()
     res_mertens = merge_mertens.process(img_list)
-    # res_debevec_8bit = np.clip(res_debevec*255, 0, 255).astype('uint8')
-    # res_robertson_8bit = np.clip(res_robertson*255, 0, 255).astype('uint8')
     res_mertens_8bit = np.clip(res_mertens*255, 0, 255).astype('uint8')
-    # cv2.imwrite("ldr_debevec.jpg", res_debevec_8bit)
-    # cv2.imwrite("ldr_robertson.jpg", res_robertson_8bit)
     cv2.imwrite("fusion_mertens.jpg", res_mertens_8bit)
-    frame = res_mertens_8bit
+    return res_mertens_8bit
 
-    gray = cv2.cvtColor(frame_normal, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite('temp/outgray.jpg', gray)
+timeout_main = 10
+while(timeout_main > 0):
+
+    still(conf["shutter"], conf["gain"], 'temp/ref.jpg')
+    rot('temp/ref.jpg')
+    frame_ref = cv2.imread('temp/ref.jpg')
+
+    gray = cv2.cvtColor(frame_ref, cv2.COLOR_BGR2GRAY)
+    # cv2.imwrite('temp/outgray.jpg', gray)
     blur = cv2.GaussianBlur(gray, (21, 21), 0)
-    cv2.imwrite('temp/outgrayblu.jpg', blur)
-    mean = np.mean(frame_normal, axis=(0,1))
+    # cv2.imwrite('temp/outgrayblu.jpg', blur)
+    mean = np.mean(frame_ref, axis=(0,1))
     print(mean)
-    all_mean = np.mean(frame_normal)
+    all_mean = np.mean(frame_ref)
     print(all_mean)
     var = np.var(gray)
     print(var)
@@ -207,27 +164,29 @@ while(True):
     gray_blur_mean = np.mean(blur)
     print(gray_blur_mean)
 
-    mean_upper_bound = 140
-    mean_lower_bound = 120
-
     if all_mean < mean_lower_bound:
         if conf["shutter"] >= shutter_max:
             if conf["gain"] >= gain_max:
+                frame = hdr(frame_ref)
                 break
             else:
-                conf["gain"] = tune_iso(conf["gain"], mean_lower_bound, mean_upper_bound)
+                conf["shutter"], conf["gain"] = tune_param(conf["shutter"], conf["gain"], 1)
         else:
-            conf["shutter"] = tune_shutter(conf["shutter"], mean_lower_bound, mean_upper_bound)
+            conf["shutter"], conf["gain"] = tune_param(conf["shutter"], conf["gain"], 1)
     elif all_mean > mean_upper_bound:
         if conf["gain"] <= gain_min:
             if conf["shutter"] <= shutter_min:
+                frame = hdr(frame_ref)
                 break
             else:
-                conf["shutter"] = tune_shutter(conf["shutter"], mean_lower_bound, mean_upper_bound)
+                conf["shutter"], conf["gain"] = tune_param(conf["shutter"], conf["gain"], -1)
         else:
-            conf["gain"] = tune_iso(conf["gain"], mean_lower_bound, mean_upper_bound)
+            conf["shutter"], conf["gain"] = tune_param(conf["shutter"], conf["gain"], -1)
     else:
+        frame = hdr(frame_ref)
         break
+
+    timeout_main -= 1
 
 conf_file = open("conf.json", "w")
 conf_file.write(json.dumps(conf, indent=4, separators=(", ", ": ")))
