@@ -4,3 +4,4 @@ conf.json
 images
 temp/*
 out/*
+__pycache__/

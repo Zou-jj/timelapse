@@ -78,7 +78,7 @@ def still_all(conf, delta):
         bright_ref_file = "temp/bright" + str(i) + ".jpg"
         dark_ref_file = "temp/dark" + str(i) + ".jpg"
 
-        conf.tune_param(i * delta)
+        conf.tune_param(i)
         still(conf, bright_ref_file)
         conf.readJSON()
         conf.tune_param(-i * delta)
@@ -111,10 +111,11 @@ def hdr(frame_ref, conf, delta):
     return res_mertens_8bit
 
 
-def main(conf):
-    # out_path = "/media/pi-zjj/Seagate/timelapse/images/"
-    out_path = "test/"
-    check_out_path(out_path)
+def main(conf, test):
+    out_path = "/media/pi-zjj/Seagate/timelapse/images/"
+    test_path = "test/"
+    if not test:
+        check_out_path(out_path)
 
     timeout_main = 10
     while timeout_main > 0:
@@ -189,7 +190,10 @@ def main(conf):
     )
 
     cv2.imwrite("temp/out.jpg", frame)
-    out_file = out_path + ts + ".jpg"
+    if not test:
+        out_file = out_path + ts + ".jpg"
+    else:
+        out_file = test_path + ts + ".jpg"
     cv2.imwrite(out_file, frame)
 
     while True:

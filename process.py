@@ -14,6 +14,8 @@ class Process:
         print("mean: r %f, g %f, b %f" % (self.mean[0], self.mean[1], self.mean[2]))
         self.all_mean = np.mean(self.frame_ref)
         print("all_mean: %f" % self.all_mean)
+        self.median = np.median(gray)
+        print("medain: %f" % self.median)
         self.var = np.var(gray)
         print("var: %f" % self.var)
         self.std = np.std(gray)

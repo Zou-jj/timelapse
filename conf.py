@@ -30,7 +30,10 @@ class Conf:
         self.mean_upper_bound = 160
         self.mean_lower_bound = 120
 
-        self.ref_number = 3
+        if "ref_number" not in conf:
+            self.ref_number = 3
+        else:
+            self.ref_number = conf["ref_number"]
 
     def tune_iso(self, delta):
         iso = int(self.gain * 100)
@@ -48,6 +51,8 @@ class Conf:
 
     def tune_shutter(self, delta):
         shutter_values = [
+            250,
+            500,
             1000,
             2000,
             4000,
@@ -75,23 +80,46 @@ class Conf:
 
 
     def tune_param(self, delta):
-        if self.shutter < self.shutter_max:
-            self.tune_shutter(delta)
+        if delta == 0:
             return
-            # return tune_shutter(self.shutter, delta), self.gain
         else:
-            if self.gain > self.gain_min:
-                self.tune_iso(delta)
-                return
-                # return self.shutter, tune_iso(self.gain, delta)
-            else:
+            if self.shutter < self.shutter_max:
                 if delta > 0:
-                    self.tune_iso(delta)
+                    self.tune_shutter(1)
+                    self.tune_param(delta - 1)
+                else:
+                    self.tune_shutter(-1)
+                    self.tune_param(delta + 1)
+                return
+                # return tune_shutter(self.shutter, delta), self.gain
+            else:
+                if self.gain > self.gain_min:
+                    if delta > 0:
+                        self.tune_iso(1)
+                        self.tune_param(delta - 1)
+                    else:
+                        self.tune_iso(-1)
+                        self.tune_param(delta + 1)
                     return
                     # return self.shutter, tune_iso(self.gain, delta)
-        self.tune_shutter(delta)
-        return
-        # return tune_shutter(self.shutter, delta), self.gain
+                else:
+                    if delta > 0:
+                        if delta > 0:
+                            self.tune_iso(1)
+                            self.tune_param(delta - 1)
+                        else:
+                            self.tune_iso(-1)
+                            self.tune_param(delta + 1)
+                        return
+                        # return self.shutter, tune_iso(self.gain, delta)
+            if delta > 0:
+                self.tune_shutter(1)
+                self.tune_param(delta - 1)
+            else:
+                self.tune_shutter(-1)
+                self.tune_param(delta + 1)
+            return
+            # return tune_shutter(self.shutter, delta), self.gain
 
     def updateShutter(self, shutter):
         self.shutter = shutter
